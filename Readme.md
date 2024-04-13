@@ -1,0 +1,7 @@
+### Run API
+```
+pip install -r requirements.txt
+```
+```
+uvicorn main:app --reload
+```
