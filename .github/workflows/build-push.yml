@@ -332,7 +332,7 @@
 #           rm -f private_key.pem
 
 
-
+###### Done code 
 
 # name: Python application
 
@@ -416,6 +416,8 @@
 #           rm -f private_key.pem
 
 
+############
+
 name: Python application
 
 on:
@@ -486,20 +488,19 @@ jobs:
               echo "Pulling Docker image: $IMAGE_NAME"
               docker pull $IMAGE_NAME
               
-              # Check if the container is running, then stop and remove it
-              if docker ps -q -f name=$DOCKER_IMAGE; then
-                  echo "Stopping and removing running container: $DOCKER_IMAGE"
-                  docker stop $DOCKER_IMAGE
-                  docker rm $DOCKER_IMAGE
-              else
-                  echo "No running container found for: $DOCKER_IMAGE"
-              fi
+              # Stop and remove all running containers
+              echo "Stopping and removing all running containers..."
+              docker stop $(docker ps -q) || true
+              docker rm $(docker ps -a -q) || true
               
-              # Run new container
-              echo "Running new container: $DOCKER_IMAGE"
+              # Remove all unused images
+              echo "Removing all unused Docker images..."
+              docker rmi $(docker images -q) || true
+              
+              # Run the new container
+              echo "Running the new container..."
               docker run -d --name $DOCKER_IMAGE -p 80:80 $IMAGE_NAME
           EOF
 
           # Clean up private key
           rm -f private_key.pem
-
