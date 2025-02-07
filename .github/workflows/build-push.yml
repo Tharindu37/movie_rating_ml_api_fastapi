@@ -1,6 +1,63 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
+# name: Python application
+
+# on:
+#   push:
+#     branches: ["main"]
+
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - uses: actions/checkout@v4
+#       - name: Build docker image for FastAPI
+#         run: docker build -t '${{secrets.DOCKER_USERNAME}}'/movie-ml-test:'${{github.sha}}' .
+
+#       - name: Logging to the Docker hub
+#         run: docker login --username '${{secrets.DOCKER_USERNAME}}' --password '${{secrets.DOCKER_PASSWORD}}'
+
+#       - name: Push the image to the docker hub
+#         run: docker push '${{secrets.DOCKER_USERNAME}}'/movie-ml-test:'${{github.sha}}'
+
+#       - name: Deploy to EC2
+#         env:
+#           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+#           REMOTE_HOST: ${{ secrets.HOST_DNS }}
+#           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+#           DOCKER_IMAGE: "movie-ml-test"
+#         run: |
+#           # Install SSH client
+#           sudo apt-get update && sudo apt-get install -y ssh
+
+#           # Save the private key and set permissions
+#           echo "$SSH_PRIVATE_KEY" > private_key.pem
+#           chmod 600 private_key.pem
+
+#           # SSH into EC2 and deploy the Docker container
+#           ssh -o StrictHostKeyChecking=no -i private_key.pem ubuntu@$REMOTE_HOST << 'EOF'
+#               set -e  # Stop execution on error
+              
+#               # Login to Docker Hub
+#               echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+              
+#               # Pull latest Docker image
+#               docker pull $DOCKER_USERNAME/$DOCKER_IMAGE:${{ github.sha }}
+              
+#               # Stop and remove any existing container
+#               docker stop $DOCKER_IMAGE || true
+#               docker rm $DOCKER_IMAGE || true
+              
+#               # Run new container
+#               docker run -d --name $DOCKER_IMAGE -p 80:80 $DOCKER_USERNAME/$DOCKER_IMAGE:${{ github.sha }}
+#           EOF
+
+#           # Clean up private key
+#           rm -f private_key.pem
+
+
 name: Python application
 
 on:
@@ -13,11 +70,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      
       - name: Build docker image for FastAPI
         run: docker build -t '${{secrets.DOCKER_USERNAME}}'/movie-ml-test:'${{github.sha}}' .
 
       - name: Logging to the Docker hub
-        run: docker login --username '${{secrets.DOCKER_USERNAME}}' --password '${{secrets.DOCKER_PASSWORD}}'
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Push the image to the docker hub
         run: docker push '${{secrets.DOCKER_USERNAME}}'/movie-ml-test:'${{github.sha}}'
@@ -37,7 +95,7 @@ jobs:
           chmod 600 private_key.pem
 
           # SSH into EC2 and deploy the Docker container
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ubuntu@$REMOTE_HOST << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ec2-user@$REMOTE_HOST << 'EOF'
               set -e  # Stop execution on error
               
               # Login to Docker Hub
