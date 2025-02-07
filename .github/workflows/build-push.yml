@@ -264,15 +264,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Build docker image for FastAPI
-        run: docker build -t '${{secrets.DOCKER_USERNAME}}/movie-ml-test:${{github.sha}}' .
 
-      - name: Logging to the Docker hub
+      - name: Build Docker image for FastAPI
+        run: |
+          IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/movie-ml-test:${{ github.sha }}"
+          echo "Building Docker image: $IMAGE_NAME"
+          docker build -t $IMAGE_NAME .
+
+      - name: Login to Docker hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - name: Push the image to the docker hub
-        run: docker push '${{ secrets.DOCKER_USERNAME }}/movie-ml-test:${{ github.sha }}'
+      - name: Push Docker image
+        run: |
+          IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/movie-ml-test:${{ github.sha }}"
+          echo "Pushing Docker image: $IMAGE_NAME"
+          docker push $IMAGE_NAME
 
       - name: Deploy to EC2
         env:
@@ -281,6 +287,10 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_IMAGE: "movie-ml-test"
         run: |
+          # Debugging: print environment variables
+          echo "DOCKER_USERNAME: $DOCKER_USERNAME"
+          echo "DOCKER_IMAGE: $DOCKER_IMAGE"
+          
           # Install SSH client
           sudo apt-get update && sudo apt-get install -y ssh
 
@@ -306,15 +316,18 @@ jobs:
               echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
               
               # Pull latest Docker image
-              docker pull $DOCKER_USERNAME/$DOCKER_IMAGE:${{ github.sha }}
+              IMAGE_NAME="${DOCKER_USERNAME}/movie-ml-test:${{ github.sha }}"
+              echo "Pulling Docker image: $IMAGE_NAME"
+              docker pull $IMAGE_NAME
               
               # Stop and remove any existing container
               docker stop $DOCKER_IMAGE || true
               docker rm $DOCKER_IMAGE || true
               
               # Run new container
-              docker run -d --name $DOCKER_IMAGE -p 80:80 $DOCKER_USERNAME/$DOCKER_IMAGE:${{ github.sha }}
+              docker run -d --name $DOCKER_IMAGE -p 80:80 $IMAGE_NAME
           EOF
 
           # Clean up private key
           rm -f private_key.pem
+
