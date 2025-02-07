@@ -31,22 +31,18 @@ jobs:
             EC2_HOST: ${{ secrets.EC2_HOST }}  # EC2 Public IP
             EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}  # Private key for SSH access
         run: |
-            # Install dependencies on the runner (if needed)
+            # Install dependencies
             sudo apt-get update
             sudo apt-get install -y ssh
-        
-            # Ensure the SSH key has the correct permissions
-            chmod 600 ${{ secrets.EC2_SSH_KEY }}
-        
-            # SSH into EC2 and pull & run Docker container
-            ssh -o StrictHostKeyChecking=no -i ${{ secrets.EC2_SSH_KEY }} ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
-            # Pull the latest image from Docker Hub
-            docker pull ${{secrets.DOCKER_USERNAME}}/movie-ml-test:${{ github.sha }}
-        
-            # Stop and remove the existing container (if any)
-            docker stop movie-ml-test || true
-            docker rm movie-ml-test || true
-        
-            # Run the Docker container
-            docker run -d --name movie-ml-test -p 80:80 ${{secrets.DOCKER_USERNAME}}/movie-ml-test:${{ github.sha }}
+
+            # Save the private key to a file
+            echo "${{ secrets.EC2_SSH_KEY }}" > private_key.pem
+            chmod 600 private_key.pem
+
+            # SSH into EC2 and deploy Docker container
+            ssh -o StrictHostKeyChecking=no -i private_key.pem ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+                docker pull ${{ secrets.DOCKER_USERNAME }}/movie-ml-test:${{ github.sha }}
+                docker stop movie-ml-test || true
+                docker rm movie-ml-test || true
+                docker run -d --name movie-ml-test -p 80:80 ${{ secrets.DOCKER_USERNAME }}/movie-ml-test:${{ github.sha }}
             EOF
