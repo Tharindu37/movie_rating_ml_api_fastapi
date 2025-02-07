@@ -18,11 +18,11 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 ENV PYTHONPATH "${PYTHONPATH}:/code/app/"
 
 # Specify default commands
-CMD [ "python", "main.py" ]
+# CMD [ "python", "main.py" ]
 # CMD [ "fastapi", "run", "main.py", "--port", "80" ]
 
 # Expose the port your FastAPI app will run on
 EXPOSE 80
 
 # Run FastAPI with Uvicorn
-# CMD [ "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80" ]
+CMD [ "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80" ]
