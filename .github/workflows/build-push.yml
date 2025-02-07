@@ -22,27 +22,37 @@ jobs:
       - name: Push the image to the docker hub
         run: docker push '${{secrets.DOCKER_USERNAME}}'/movie-ml-test:'${{github.sha}}'
 
-
-      # Deploy Docker image to EC2
       - name: Deploy to EC2
         env:
-            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            EC2_HOST: ${{ secrets.EC2_HOST }}  # EC2 Public IP
-            EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}  # Private key for SSH access
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.HOST_DNS }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_IMAGE: "movie-ml-test"
         run: |
-            # Install dependencies
-            sudo apt-get update
-            sudo apt-get install -y ssh
+          # Install SSH client
+          sudo apt-get update && sudo apt-get install -y ssh
 
-            # Save the private key to a file
-            echo "${{ secrets.EC2_SSH_KEY }}" > private_key.pem
-            chmod 600 private_key.pem
+          # Save the private key and set permissions
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
 
-            # SSH into EC2 and deploy Docker container
-            ssh -o StrictHostKeyChecking=no -i private_key.pem ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
-                docker pull ${{ secrets.DOCKER_USERNAME }}/movie-ml-test:${{ github.sha }}
-                docker stop movie-ml-test || true
-                docker rm movie-ml-test || true
-                docker run -d --name movie-ml-test -p 80:80 ${{ secrets.DOCKER_USERNAME }}/movie-ml-test:${{ github.sha }}
-            EOF
+          # SSH into EC2 and deploy the Docker container
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ubuntu@$REMOTE_HOST << 'EOF'
+              set -e  # Stop execution on error
+              
+              # Login to Docker Hub
+              echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+              
+              # Pull latest Docker image
+              docker pull $DOCKER_USERNAME/$DOCKER_IMAGE:${{ github.sha }}
+              
+              # Stop and remove any existing container
+              docker stop $DOCKER_IMAGE || true
+              docker rm $DOCKER_IMAGE || true
+              
+              # Run new container
+              docker run -d --name $DOCKER_IMAGE -p 80:80 $DOCKER_USERNAME/$DOCKER_IMAGE:${{ github.sha }}
+          EOF
+
+          # Clean up private key
+          rm -f private_key.pem
